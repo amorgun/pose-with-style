@@ -1290,37 +1290,13 @@ class GarmentTransferSpatialAppearanceEncoder(nn.Module):
 
         # body part to transfer
         target_parts = torch.round(self.uv2target(pose.int(), self.uv_parts.to(pose))).int()
-        if self.part == 'face':
-            face_mask_1 = target_parts==23-1
-            face_mask_2 = target_parts==24-1
-            face_mask = (face_mask_1+face_mask_2).float()
-            part_mask = face_mask
-        elif self.part == 'lower_body':
-            # LOWER CLOTHES: 7,9=UpperLegRight 8,10=UpperLegLeft 11,13=LowerLegRight 12,14=LowerLegLeft
-            lower_mask_1 = target_parts==7-1
-            lower_mask_2 = target_parts==9-1
-            lower_mask_3 = target_parts==8-1
-            lower_mask_4 = target_parts==10-1
-            lower_mask_5 = target_parts==11-1
-            lower_mask_6 = target_parts==13-1
-            lower_mask_7 = target_parts==12-1
-            lower_mask_8 = target_parts==14-1
-            lower_mask = (lower_mask_1+lower_mask_2+lower_mask_3+lower_mask_4+lower_mask_5+lower_mask_6+lower_mask_7+lower_mask_8).float()
-            part_mask = lower_mask
-        else: # upper body
-            # UPPER CLOTHES: 1,2=Torso 15,17=UpperArmLeft 16,18=UpperArmRight 19,21=LowerArmLeft 20,22=LowerArmRight
-            upper_mask_1 = target_parts==1-1
-            upper_mask_2 = target_parts==2-1
-            upper_mask_3 = target_parts==15-1
-            upper_mask_4 = target_parts==17-1
-            upper_mask_5 = target_parts==16-1
-            upper_mask_6 = target_parts==18-1
-            upper_mask_7 = target_parts==19-1
-            upper_mask_8 = target_parts==21-1
-            upper_mask_9 = target_parts==20-1
-            upper_mask_10 = target_parts==22-1
-            upper_mask = (upper_mask_1+upper_mask_2+upper_mask_3+upper_mask_4+upper_mask_5+upper_mask_6+upper_mask_7+upper_mask_8+upper_mask_9+upper_mask_10).float()
-            part_mask = upper_mask
+        part_ids = {
+            'face': [23, 24],
+            'lower_body': [7, 8, 9, 10, 11, 12, 13, 14], # LOWER CLOTHES: 7,9=UpperLegRight 8,10=UpperLegLeft 11,13=LowerLegRight 12,14=LowerLegLeft
+            'upper_body': [1, 2, 15, 16, 17, 18, 19, 20, 21, 22], # UPPER CLOTHES: 1,2=Torso 15,17=UpperArmLeft 16,18=UpperArmRight 19,21=LowerArmLeft 20,22=LowerArmRight
+            'full_body': [1, 2, 15, 16, 17, 18, 19, 20, 21, 22] + [7, 8, 9, 10, 11, 12, 13, 14],
+        }
+        part_mask = sum([target_parts==i-1 for i in part_ids[self.part]]).float()
 
         part_mask1 = torch.nn.functional.interpolate(part_mask, size=(x1.shape[2], x1.shape[3]), mode='bilinear', align_corners=True)
         part_mask2 = torch.nn.functional.interpolate(part_mask, size=(x2.shape[2], x2.shape[3]), mode='bilinear', align_corners=True)
