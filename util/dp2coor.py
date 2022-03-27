@@ -59,7 +59,7 @@ def getXYcoor(iuv, resolution=256, dp_uv_lookup_256_np=None):
     coor_xy = np.stack([coor_x, coor_y], 2)
     return coor_xy, uv_mask_d
 
-def mapper(iuv, resolution=256, dp_uv_lookup_256_np):
+def mapper(iuv, resolution=256, dp_uv_lookup_256_np=None):
     H, W, _ = iuv.shape
     iuv_raw = iuv[iuv[:, :, 0] > 0]
     x = np.linspace(0, W-1, W).astype(np.int)
