@@ -5,9 +5,11 @@ from scipy.interpolate import griddata
 import cv2
 import argparse
 
-def getSymXYcoordinates(iuv, resolution = 256):
-    xy, xyMask = getXYcoor(iuv, resolution = resolution)
-    f_xy, f_xyMask = getXYcoor(flip_iuv(np.copy(iuv)), resolution = resolution)
+def getSymXYcoordinates(iuv, resolution=256, dp_uv_lookup_256_np=None):
+    if dp_uv_lookup_256_np is None:
+        dp_uv_lookup_256_np = np.load('util/dp_uv_lookup_256.npy')
+    xy, xyMask = getXYcoor(iuv, resolution=resolution, dp_uv_lookup_256_np=dp_uv_lookup_256_np)
+    f_xy, f_xyMask = getXYcoor(flip_iuv(np.copy(iuv)), resolution=resolution, dp_uv_lookup_256_np=dp_uv_lookup_256_np)
     f_xyMask = np.clip(f_xyMask-xyMask, a_min=0, a_max=1)
     # combine actual + symmetric
     combined_texture = xy*np.expand_dims(xyMask,2) + f_xy*np.expand_dims(f_xyMask,2)
@@ -31,8 +33,8 @@ def flip_iuv(iuv):
                     v[annot_indices_i] = 255-v[annot_indices_i]
     return np.stack([i,u,v],2)
 
-def getXYcoor(iuv, resolution = 256):
-    x, y, u, v = mapper(iuv, resolution)
+def getXYcoor(iuv, resolution=256, dp_uv_lookup_256_np=None):
+    x, y, u, v = mapper(iuv, resolution, dp_uv_lookup_256_np=dp_uv_lookup_256_np)
     # A meshgrid of pixel coordinates
     nx, ny = resolution, resolution
     X, Y = np.meshgrid(np.arange(0, nx, 1), np.arange(0, ny, 1))
@@ -57,8 +59,7 @@ def getXYcoor(iuv, resolution = 256):
     coor_xy = np.stack([coor_x, coor_y], 2)
     return coor_xy, uv_mask_d
 
-def mapper(iuv, resolution=256):
-    dp_uv_lookup_256_np = np.load('util/dp_uv_lookup_256.npy')
+def mapper(iuv, resolution=256, dp_uv_lookup_256_np):
     H, W, _ = iuv.shape
     iuv_raw = iuv[iuv[:, :, 0] > 0]
     x = np.linspace(0, W-1, W).astype(np.int)
