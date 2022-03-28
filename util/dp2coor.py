@@ -39,12 +39,10 @@ def getXYcoor(iuv, resolution=256, dp_uv_lookup_256_np=None):
     nx, ny = resolution, resolution
     X, Y = np.meshgrid(np.arange(0, nx, 1), np.arange(0, ny, 1))
     ## get x,y coordinates
-    uv_y = griddata((v, u), y, (Y, X), method='linear')
-    uv_y_ = griddata((v, u), y, (Y, X), method='nearest')
-    uv_y[np.isnan(uv_y)] = uv_y_[np.isnan(uv_y)]
-    uv_x = griddata((v, u), x, (Y, X), method='linear')
-    uv_x_ = griddata((v, u), x, (Y, X), method='nearest')
-    uv_x[np.isnan(uv_x)] = uv_x_[np.isnan(uv_x)]
+    xy = np.stack([x, y], -1)
+    uv_xy = griddata((v, u), xy, (Y, X), method='linear')
+    uv_xy_ = griddata((v, u), xy, (Y, X), method='nearest')
+    uv_xy[np.isnan(uv_xy)] = uv_xy_[np.isnan(uv_xy)]
     # get mask
     uv_mask = np.zeros((ny,nx))
     uv_mask[np.ceil(v).astype(int),np.ceil(u).astype(int)]=1
@@ -54,28 +52,23 @@ def getXYcoor(iuv, resolution=256, dp_uv_lookup_256_np=None):
     kernel = np.ones((3,3),np.uint8)
     uv_mask_d = cv2.dilate(uv_mask,kernel,iterations = 1)
     # update
-    coor_x = uv_x * uv_mask_d
-    coor_y = uv_y * uv_mask_d
-    coor_xy = np.stack([coor_x, coor_y], 2)
+    coor_xy = uv_xy * uv_mask_d[:, :, None]
     return coor_xy, uv_mask_d
 
 def mapper(iuv, resolution=256, dp_uv_lookup_256_np=None):
     H, W, _ = iuv.shape
-    iuv_raw = iuv[iuv[:, :, 0] > 0]
-    x = np.linspace(0, W-1, W).astype(np.int)
-    y = np.linspace(0, H-1, H).astype(np.int)
+    iuv_mask = iuv[:, :, 0] > 0
+    iuv_raw = iuv[iuv_mask].astype(int)
+    x = np.linspace(0, W-1, W, dtype=int)
+    y = np.linspace(0, H-1, H, dtype=int)
     xx, yy = np.meshgrid(x, y)
-    xx_rgb = xx[iuv[:, :, 0] > 0]
-    yy_rgb = yy[iuv[:, :, 0] > 0]
+    xx_rgb = xx[iuv_mask]
+    yy_rgb = yy[iuv_mask]
     # modify i to start from 0... 0-23
     i = iuv_raw[:, 0] - 1
     u = iuv_raw[:, 1]
     v = iuv_raw[:, 2]
-    uv_smpl = dp_uv_lookup_256_np[
-    i.astype(np.int),
-    v.astype(np.int),
-    u.astype(np.int)
-    ]
+    uv_smpl = dp_uv_lookup_256_np[i, v, u]
     u_f = uv_smpl[:, 0] * (resolution - 1)
     v_f = (1 - uv_smpl[:, 1]) * (resolution - 1)
     return xx_rgb, yy_rgb, u_f, v_f
