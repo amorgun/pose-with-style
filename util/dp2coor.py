@@ -35,14 +35,8 @@ def flip_iuv(iuv):
 
 def getXYcoor(iuv, resolution=256, dp_uv_lookup_256_np=None):
     x, y, u, v = mapper(iuv, resolution, dp_uv_lookup_256_np=dp_uv_lookup_256_np)
-    # A meshgrid of pixel coordinates
     nx, ny = resolution, resolution
-    X, Y = np.meshgrid(np.arange(0, nx, 1), np.arange(0, ny, 1))
-    ## get x,y coordinates
-    xy = np.stack([x, y], -1)
-    uv_xy = griddata((v, u), xy, (Y, X), method='linear')
-    uv_xy_ = griddata((v, u), xy, (Y, X), method='nearest')
-    uv_xy[np.isnan(uv_xy)] = uv_xy_[np.isnan(uv_xy)]
+
     # get mask
     uv_mask = np.zeros((ny,nx))
     uv_mask[np.ceil(v).astype(int),np.ceil(u).astype(int)]=1
@@ -50,10 +44,20 @@ def getXYcoor(iuv, resolution=256, dp_uv_lookup_256_np=None):
     uv_mask[np.ceil(v).astype(int),np.floor(u).astype(int)]=1
     uv_mask[np.floor(v).astype(int),np.ceil(u).astype(int)]=1
     kernel = np.ones((3,3),np.uint8)
-    uv_mask_d = cv2.dilate(uv_mask,kernel,iterations = 1)
-    # update
-    coor_xy = uv_xy * uv_mask_d[:, :, None]
-    return coor_xy, uv_mask_d
+    uv_mask_d = cv2.dilate(uv_mask, kernel, iterations=1)
+
+    # A meshgrid of pixel coordinates
+    X, Y = np.meshgrid(np.arange(0, nx, 1), np.arange(0, ny, 1))
+    YX = np.stack([Y, X], -1)
+
+    ## get x,y coordinates
+    xy = np.stack([x, y], -1)
+    uv_xy = np.zeros((ny, nx, 2))
+    uv_mask_b = uv_mask_d.astype(bool)
+    uv_xy[uv_mask_b] = griddata((v, u), xy, YX[uv_mask_b], method='linear')
+    nan_mask = np.isnan(uv_xy) & uv_mask_b[:, :, None]
+    uv_xy[nan_mask] = griddata((v, u), xy, YX[nan_mask], method='nearest').reshape(-1)
+    return uv_xy, uv_mask_d
 
 def mapper(iuv, resolution=256, dp_uv_lookup_256_np=None):
     H, W, _ = iuv.shape
