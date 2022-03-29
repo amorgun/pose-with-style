@@ -1136,7 +1136,7 @@ class GarmentTransferSpatialAppearanceEncoder(nn.Module):
             #https://github.com/iPERDance/iPERCore/blob/4a010f781a4fb90dd29a516472e4aadf41ed1609/iPERCore/models/networks/generators/lwb_avg_resunet.py#L55
             uv_map = torch.nn.functional.interpolate(uv_map, size=(h_x, w_x), mode='bilinear', align_corners=True)
         uv_map = uv_map.permute(0, 2, 3, 1)
-        warped_image = torch.nn.functional.grid_sample(tex.float().expand(uv_map.shape[0], -1, -1, -1), uv_map.float())
+        warped_image = torch.nn.functional.grid_sample(tex.float(), uv_map.float())
         if tex_mask is not None:
             warped_mask = torch.nn.functional.grid_sample(tex_mask.float(), uv_map.float())
             final_warped = warped_image * warped_mask
@@ -1289,7 +1289,7 @@ class GarmentTransferSpatialAppearanceEncoder(nn.Module):
             target_x7 = x7
 
         # body part to transfer
-        target_parts = torch.round(self.uv2target(pose.int(), self.uv_parts.to(pose))).int()
+        target_parts = torch.round(self.uv2target(pose.int(), self.uv_parts.expand(pose.shape[0], -1, -1, -1).to(pose))).int()
         part_ids = {
             'face': [23, 24],
             'lower_body': [7, 8, 9, 10, 11, 12, 13, 14], # LOWER CLOTHES: 7,9=UpperLegRight 8,10=UpperLegLeft 11,13=LowerLegRight 12,14=LowerLegLeft
